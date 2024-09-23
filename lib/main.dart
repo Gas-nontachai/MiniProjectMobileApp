@@ -146,7 +146,16 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
                 subtitle: Text('จำนวน: ${product['quantity']}'),
                 leading: product['image'] != null
                     ? GestureDetector(
-                        onTap: () => _fullScreenImage(product['image']),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => FullScreenImage(
+                                imagePath: product['image'],
+                              ),
+                            ),
+                          );
+                        },
                         child: Image.file(
                           File(product['image']),
                           width: 50,
@@ -187,7 +196,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
     );
   }
 
-  Future<String> fetchWeather() async {
+  Future<Widget> fetchWeather() async {
     const city = 'Nakhon Ratchasima'; // ชื่อเมือง
     const apikey = '6086f32e68c2465cb21204519242309'; // ใส่ API Key ที่ถูกต้อง
 
@@ -197,7 +206,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return 'นครราชสีมา อุณหภูมิ: ${data['current']['temp_c']} °C'; // อุณหภูมิเป็น °C
+      return '\n นครราชสีมา อุณหภูมิ: ${data['current']['temp_c']} °C';
     } else {
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -310,7 +319,14 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
                             product['image'] != null
                                 ? GestureDetector(
                                     onTap: () {
-                                      _fullScreenImage(product['image']);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => FullScreenImage(
+                                            imagePath: product['image'],
+                                          ),
+                                        ),
+                                      );
                                     },
                                     child: Image.file(
                                       File(product['image']),
@@ -361,29 +377,25 @@ class AddProductModal extends StatefulWidget {
 }
 
 class _AddProductModalState extends State<AddProductModal> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _quantityController = TextEditingController();
-  final TextEditingController _costPriceController = TextEditingController();
-  final TextEditingController _sellingPriceController = TextEditingController();
-  String? _selectedCategory;
+  final _nameController = TextEditingController();
+  final _quantityController = TextEditingController();
   XFile? _imageFile;
 
   @override
   void initState() {
     super.initState();
     if (widget.existingProduct != null) {
-      final product = widget.existingProduct!;
-      _nameController.text = product['name'];
-      _quantityController.text = product['quantity'].toString();
-      _costPriceController.text = product['cost_price'].toString();
-      _sellingPriceController.text = product['selling_price'].toString();
-      _selectedCategory = product['category'];
+      _nameController.text = widget.existingProduct!['name'];
+      _quantityController.text = widget.existingProduct!['quantity'].toString();
+      _imageFile = widget.existingProduct!['image'] != null
+          ? XFile(widget.existingProduct!['image'])
+          : null;
     }
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker _picker = ImagePicker();
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     setState(() {
       _imageFile = image;
     });
@@ -420,51 +432,38 @@ class _AddProductModalState extends State<AddProductModal> {
           ),
           TextField(
             controller: _quantityController,
-            decoration: const InputDecoration(labelText: 'จำนวน'),
-            keyboardType: TextInputType.number,
-          ),
-          DropdownButton<String>(
-            hint: const Text('เลือกหมวดหมู่'),
-            value: _selectedCategory,
-            items: widget.categories.map((String category) {
-              return DropdownMenuItem<String>(
-                value: category,
-                child: Text(category),
-              );
-            }).toList(),
-            onChanged: (String? newValue) {
-              setState(() {
-                _selectedCategory = newValue;
-              });
-            },
-          ),
-          TextField(
-            controller: _costPriceController,
-            decoration: const InputDecoration(labelText: 'ราคาทุน'),
-            keyboardType: TextInputType.number,
-          ),
-          TextField(
-            controller: _sellingPriceController,
-            decoration: const InputDecoration(labelText: 'ราคาขาย'),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: _pickImage,
-            child: const Text('เลือกภาพสินค้า'),
-          ),
-          const SizedBox(height: 8),
-          if (_imageFile != null)
-            Image.file(
-              File(_imageFile!.path),
-              width: 100,
-              height: 100,
-              fit: BoxFit.cover,
+            decoration: const InputDecoration(
+              labelText: 'จำนวน',
             ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickImage,
+            child: Container(
+              height: 100,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: _imageFile == null
+                  ? const Center(child: Text('เลือกภาพ'))
+                  : Image.file(
+                      File(_imageFile!.path),
+                      fit: BoxFit.cover,
+                    ),
+            ),
+          ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: _submit,
-            child: const Text('บันทึกสินค้า'),
+            onPressed: () {
+              final name = _nameController.text;
+              final quantity = int.tryParse(_quantityController.text) ?? 0;
+              widget.onAddProduct(name, quantity, _imageFile);
+              Navigator.pop(context);
+            },
+            child: const Text('บันทึก'),
           ),
         ],
       ),
