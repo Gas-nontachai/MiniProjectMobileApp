@@ -34,6 +34,7 @@ class StockCheckScreen extends StatefulWidget {
 class _StockCheckScreenState extends State<StockCheckScreen> {
   final List<Map<String, dynamic>> _products = [];
   String _weatherInfo = 'กำลังโหลด...';
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -41,7 +42,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
     _loadProducts();
     fetchWeather().then((value) {
       setState(() {
-        _weatherInfo = value;
+        _weatherInfo = value as String;
       });
     }).catchError((error) {
       setState(() {
@@ -69,17 +70,18 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
 
   void _addProduct(String name, int quantity, XFile? imageFile, [int? index]) {
     setState(() {
+      final imagePath = imageFile?.path; // ใช้ path ของ XFile
       if (index != null) {
         _products[index] = {
           'name': name,
           'quantity': quantity,
-          'image': imageFile?.path, // จัดเก็บ path แทน XFile
+          'image': imagePath, // เก็บเฉพาะ path
         };
       } else {
         _products.add({
           'name': name,
           'quantity': quantity,
-          'image': imageFile?.path, // จัดเก็บ path แทน XFile
+          'image': imagePath,
         });
       }
       _saveProducts();
@@ -159,7 +161,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
     );
   }
 
-  Future<String> fetchWeather() async {
+  Future<Widget> fetchWeather() async {
     const city = 'Nakhon Ratchasima'; // ชื่อเมือง
     const apikey = '6086f32e68c2465cb21204519242309'; // ใส่ API Key ที่ถูกต้อง
 
@@ -169,7 +171,12 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return '${data['current']['temp_c']} °C'; // อุณหภูมิเป็น °C
+      return Text(
+        'นครราชสีมา อุณหภูมิ: ${data['current']['temp_c']} °C',
+        style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold), // ปรับขนาดและสไตล์ที่นี่
+      );
     } else {
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -177,19 +184,42 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
     }
   }
 
+  void _updateSearchQuery(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filteredProducts = _products.where((product) {
+      return product['name'].toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: Text('โปรแกรมเช็คสต็อก ($_weatherInfo)'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(70.0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: 'ค้นหาสินค้า...',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: _updateSearchQuery,
+            ),
+          ),
+        ),
       ),
-      body: _products.isEmpty
+      body: filteredProducts.isEmpty
           ? const Center(child: Text('ยังไม่มีข้อมูลสต็อก'))
           : SingleChildScrollView(
               child: Wrap(
                 spacing: 8.0,
                 runSpacing: 8.0,
-                children: _products.map((product) {
+                children: filteredProducts.map((product) {
                   int index = _products.indexOf(product);
                   return GestureDetector(
                     onTap: () => _openProductModal(context, index),
@@ -255,9 +285,10 @@ class _AddProductModalState extends State<AddProductModal> {
     if (widget.existingProduct != null) {
       _nameController.text = widget.existingProduct!['name'];
       _quantityController.text = widget.existingProduct!['quantity'].toString();
-      _selectedImage = widget.existingProduct!['image'] != null
-          ? XFile(widget.existingProduct!['image']) // สร้าง XFile จาก path
-          : null;
+      final imagePath = widget.existingProduct!['image'];
+      if (imagePath != null) {
+        _selectedImage = XFile(imagePath); // แปลง path กลับเป็น XFile
+      }
     }
   }
 
@@ -282,7 +313,7 @@ class _AddProductModalState extends State<AddProductModal> {
             ),
             ListTile(
               leading: const Icon(Icons.image),
-              title: const Text('เลือกรูปจากอัลบั้ม'),
+              title: const Text('เลือกจากแกลเลอรี่'),
               onTap: () async {
                 final pickedFile =
                     await _picker.pickImage(source: ImageSource.gallery);
@@ -298,30 +329,35 @@ class _AddProductModalState extends State<AddProductModal> {
     );
   }
 
+  void _submit() {
+    final name = _nameController.text;
+    final quantity = int.tryParse(_quantityController.text) ?? 0;
+
+    if (name.isEmpty || quantity <= 0) {
+      return;
+    }
+
+    widget.onAddProduct(name, quantity, _selectedImage);
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'ชื่อสินค้า',
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: 'ชื่อสินค้า'),
           ),
-          const SizedBox(height: 16),
           TextField(
             controller: _quantityController,
+            decoration: const InputDecoration(labelText: 'จำนวนสินค้า'),
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'จำนวน',
-              border: OutlineInputBorder(),
-            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           GestureDetector(
             onTap: () => _chooseImage(context),
             child: Container(
@@ -334,17 +370,12 @@ class _AddProductModalState extends State<AddProductModal> {
                       File(_selectedImage!.path),
                       fit: BoxFit.cover,
                     )
-                  : const Center(child: Text('เลือกรูป')),
+                  : const Center(child: Text('เลือกภาพ')),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: () {
-              final name = _nameController.text;
-              final quantity = int.tryParse(_quantityController.text) ?? 0;
-              widget.onAddProduct(name, quantity, _selectedImage);
-              Navigator.pop(context);
-            },
+            onPressed: _submit,
             child: const Text('บันทึก'),
           ),
         ],
