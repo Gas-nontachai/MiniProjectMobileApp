@@ -1,0 +1,21 @@
+name: miniprojmobile
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  image_picker: ^0.8.4+2       # เพิ่ม image_picker
+  shared_preferences: ^2.0.15    # เพิ่ม shared_preferences
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
