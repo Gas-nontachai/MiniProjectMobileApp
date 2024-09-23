@@ -289,10 +289,10 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
             Expanded(
               child: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.8,
-                  crossAxisSpacing: 8.0,
-                  mainAxisSpacing: 8.0,
+                  crossAxisCount: 2, // จำนวนการ์ดในแต่ละแถว
+                  childAspectRatio: 0.8, // อัตราส่วนความสูงและความกว้างของการ์ด
+                  crossAxisSpacing: 8.0, // ระยะห่างระหว่างการ์ดในแนวนอน
+                  mainAxisSpacing: 8.0, // ระยะห่างระหว่างการ์ดในแนวตั้ง
                 ),
                 itemCount: filteredProducts.length,
                 itemBuilder: (context, index) {
@@ -321,22 +321,10 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
                                   )
                                 : const Icon(Icons.image, size: 80),
                             const SizedBox(height: 8),
-                            Text(
-                              product['name'] ?? 'ไม่ระบุชื่อสินค้า',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center,
-                            ),
-                            Text('จำนวน: ${product['quantity'] ?? 0}',
-                                textAlign: TextAlign.center),
-                            Text(
-                              'ราคาทุน: ฿${product['cost_price']?.toStringAsFixed(2) ?? 'ไม่ระบุ'}',
-                              textAlign: TextAlign.center,
-                            ),
-                            Text(
-                              'ราคาขาย: ฿${product['selling_price']?.toStringAsFixed(2) ?? 'ไม่ระบุ'}',
-                              textAlign: TextAlign.center,
-                            ),
+                            Text(product['name'],
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            Text('จำนวน: ${product['quantity']}'),
                           ],
                         ),
                       ),
