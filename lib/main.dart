@@ -131,11 +131,23 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
                 title: Text(product['name']),
                 subtitle: Text('จำนวน: ${product['quantity']}'),
                 leading: product['image'] != null
-                    ? Image.file(
-                        File(product['image']),
-                        width: 50,
-                        height: 50,
-                        fit: BoxFit.cover,
+                    ? GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => FullScreenImage(
+                                imagePath: product['image'],
+                              ),
+                            ),
+                          );
+                        },
+                        child: Image.file(
+                          File(product['image']),
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                        ),
                       )
                     : const Icon(Icons.image),
               ),
@@ -161,7 +173,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
     );
   }
 
-  Future<Widget> fetchWeather() async {
+  Future<String> fetchWeather() async {
     const city = 'Nakhon Ratchasima'; // ชื่อเมือง
     const apikey = '6086f32e68c2465cb21204519242309'; // ใส่ API Key ที่ถูกต้อง
 
@@ -171,12 +183,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return Text(
-        'นครราชสีมา อุณหภูมิ: ${data['current']['temp_c']} °C',
-        style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold), // ปรับขนาดและสไตล์ที่นี่
-      );
+      return '\n นครราชสีมา อุณหภูมิ: ${data['current']['temp_c']} °C';
     } else {
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -232,11 +239,23 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             product['image'] != null
-                                ? Image.file(
-                                    File(product['image']),
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
+                                ? GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => FullScreenImage(
+                                            imagePath: product['image'],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Image.file(
+                                      File(product['image']),
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.cover,
+                                    ),
                                   )
                                 : const Icon(Icons.image, size: 80),
                             const SizedBox(height: 8),
@@ -260,6 +279,58 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
   }
 }
 
+class FullScreenImage extends StatelessWidget {
+  final String imagePath;
+
+  const FullScreenImage({super.key, required this.imagePath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black.withOpacity(0.7), // สีพื้นหลังดำโปร่งใส
+      body: Center(
+        child: Container(
+          margin: const EdgeInsets.all(20.0), // เว้นระยะห่างจากขอบ
+          decoration: BoxDecoration(
+            color: Colors.black, // สีพื้นหลังของภาพ
+            borderRadius: BorderRadius.circular(10), // มุมโค้ง
+            border: Border.all(
+                color: Colors.black.withOpacity(0.7),
+                width: 3), // ขอบสีดำโปร่งใส
+          ),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10), // มุมโค้งของภาพ
+                child: Image.file(
+                  File(imagePath),
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
+              ),
+              Positioned(
+                top: 40,
+                right: 20,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class AddProductModal extends StatefulWidget {
   final Function(String, int, XFile?) onAddProduct;
   final Map<String, dynamic>? existingProduct;
@@ -277,7 +348,7 @@ class AddProductModal extends StatefulWidget {
 class _AddProductModalState extends State<AddProductModal> {
   final _nameController = TextEditingController();
   final _quantityController = TextEditingController();
-  XFile? _selectedImage;
+  XFile? _imageFile;
 
   @override
   void initState() {
@@ -285,60 +356,18 @@ class _AddProductModalState extends State<AddProductModal> {
     if (widget.existingProduct != null) {
       _nameController.text = widget.existingProduct!['name'];
       _quantityController.text = widget.existingProduct!['quantity'].toString();
-      final imagePath = widget.existingProduct!['image'];
-      if (imagePath != null) {
-        _selectedImage = XFile(imagePath); // แปลง path กลับเป็น XFile
-      }
+      _imageFile = widget.existingProduct!['image'] != null
+          ? XFile(widget.existingProduct!['image'])
+          : null;
     }
   }
 
-  Future<void> _chooseImage(BuildContext context) async {
-    final ImagePicker _picker = ImagePicker();
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera),
-              title: const Text('ถ่ายรูป'),
-              onTap: () async {
-                final pickedFile =
-                    await _picker.pickImage(source: ImageSource.camera);
-                setState(() {
-                  _selectedImage = pickedFile;
-                });
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.image),
-              title: const Text('เลือกจากแกลเลอรี่'),
-              onTap: () async {
-                final pickedFile =
-                    await _picker.pickImage(source: ImageSource.gallery);
-                setState(() {
-                  _selectedImage = pickedFile;
-                });
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _submit() {
-    final name = _nameController.text;
-    final quantity = int.tryParse(_quantityController.text) ?? 0;
-
-    if (name.isEmpty || quantity <= 0) {
-      return;
-    }
-
-    widget.onAddProduct(name, quantity, _selectedImage);
-    Navigator.pop(context);
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    setState(() {
+      _imageFile = image;
+    });
   }
 
   @override
@@ -350,32 +379,43 @@ class _AddProductModalState extends State<AddProductModal> {
         children: [
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(labelText: 'ชื่อสินค้า'),
+            decoration: const InputDecoration(
+              labelText: 'ชื่อสินค้า',
+            ),
           ),
           TextField(
             controller: _quantityController,
-            decoration: const InputDecoration(labelText: 'จำนวนสินค้า'),
+            decoration: const InputDecoration(
+              labelText: 'จำนวน',
+            ),
             keyboardType: TextInputType.number,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           GestureDetector(
-            onTap: () => _chooseImage(context),
+            onTap: _pickImage,
             child: Container(
               height: 100,
+              width: double.infinity,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8.0),
               ),
-              child: _selectedImage != null
-                  ? Image.file(
-                      File(_selectedImage!.path),
+              child: _imageFile == null
+                  ? const Center(child: Text('เลือกภาพ'))
+                  : Image.file(
+                      File(_imageFile!.path),
                       fit: BoxFit.cover,
-                    )
-                  : const Center(child: Text('เลือกภาพ')),
+                    ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: _submit,
+            onPressed: () {
+              final name = _nameController.text;
+              final quantity = int.tryParse(_quantityController.text) ?? 0;
+              widget.onAddProduct(name, quantity, _imageFile);
+              Navigator.pop(context);
+            },
             child: const Text('บันทึก'),
           ),
         ],
