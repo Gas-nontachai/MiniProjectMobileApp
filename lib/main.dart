@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -32,11 +33,21 @@ class StockCheckScreen extends StatefulWidget {
 
 class _StockCheckScreenState extends State<StockCheckScreen> {
   final List<Map<String, dynamic>> _products = [];
+  String _weatherInfo = 'กำลังโหลด...';
 
   @override
   void initState() {
     super.initState();
     _loadProducts();
+    fetchWeather().then((value) {
+      setState(() {
+        _weatherInfo = value;
+      });
+    }).catchError((error) {
+      setState(() {
+        _weatherInfo = 'ไม่สามารถโหลดข้อมูล';
+      });
+    });
   }
 
   Future<void> _loadProducts() async {
@@ -71,7 +82,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
           'image': imageFile,
         });
       }
-      _saveProducts(); // บันทึกข้อมูลทุกครั้งที่มีการเพิ่มหรือแก้ไข
+      _saveProducts();
     });
   }
 
@@ -98,7 +109,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
   void _deleteProduct(int index) {
     setState(() {
       _products.removeAt(index);
-      _saveProducts(); // บันทึกข้อมูลหลังจากลบ
+      _saveProducts();
     });
   }
 
@@ -148,11 +159,29 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
     );
   }
 
+  Future<String> fetchWeather() async {
+  const city = 'Nakhon Ratchasima'; // ชื่อเมือง
+  const apikey = '6086f32e68c2465cb21204519242309'; // ใส่ API Key ที่ถูกต้อง
+
+  final response = await http.get(Uri.parse(
+    'https://api.weatherapi.com/v1/current.json?key=$apikey&q=$city&aqi=no',
+  ));
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    return 'นครราชสีมา อุณหภูมิ: ${data['current']['temp_c']} °C'; // อุณหภูมิเป็น °C
+  } else {
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+    throw Exception('ไม่สามารถโหลดข้อมูลได้');
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('โปรแกรมเช็คสต็อก'),
+        title: Text('โปรแกรมเช็คสต็อก ($_weatherInfo)'),
       ),
       body: _products.isEmpty
           ? const Center(child: Text('ยังไม่มีข้อมูลสต็อก'))
