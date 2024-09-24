@@ -46,7 +46,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
       });
     }).catchError((error) {
       setState(() {
-        _weatherInfo = 'ไม่สามารถโหลดข้อมูล';
+        _weatherInfo = '\n ไม่สามารถโหลดข้อมูล';
       });
     });
   }
@@ -75,7 +75,8 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
         _products[index] = {
           'name': name,
           'quantity': quantity,
-          'image': imagePath, // เก็บเฉพาะ path
+          'image': imagePath ??
+              _products[index]['image'], // เก็บค่าภาพเดิมถ้าไม่มีการแก้ไข
         };
       } else {
         _products.add({
@@ -163,7 +164,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
 
   Future<Widget> fetchWeather() async {
     const city = 'Nakhon Ratchasima'; // ชื่อเมือง
-    const apikey = '6086f32e68c2465cb21204519242309'; // ใส่ API Key ที่ถูกต้อง
+    const apikey = '4881842815d84f00b03220602242309'; // ใส่ API Key ที่ถูกต้อง
 
     final response = await http.get(Uri.parse(
       'https://api.weatherapi.com/v1/current.json?key=$apikey&q=$city&aqi=no',
@@ -180,7 +181,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
     } else {
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
-      throw Exception('ไม่สามารถโหลดข้อมูลได้');
+      throw Exception('\n ไม่สามารถโหลดข้อมูลได้');
     }
   }
 
@@ -293,7 +294,7 @@ class _AddProductModalState extends State<AddProductModal> {
   }
 
   Future<void> _chooseImage(BuildContext context) async {
-    final ImagePicker _picker = ImagePicker();
+    final ImagePicker picker = ImagePicker();
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -304,7 +305,7 @@ class _AddProductModalState extends State<AddProductModal> {
               title: const Text('ถ่ายรูป'),
               onTap: () async {
                 final pickedFile =
-                    await _picker.pickImage(source: ImageSource.camera);
+                    await picker.pickImage(source: ImageSource.camera);
                 setState(() {
                   _selectedImage = pickedFile;
                 });
@@ -312,11 +313,11 @@ class _AddProductModalState extends State<AddProductModal> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.image),
-              title: const Text('เลือกจากแกลเลอรี่'),
+              leading: const Icon(Icons.photo_library),
+              title: const Text('เลือกรูปจากแกลเลอรี่'),
               onTap: () async {
                 final pickedFile =
-                    await _picker.pickImage(source: ImageSource.gallery);
+                    await picker.pickImage(source: ImageSource.gallery);
                 setState(() {
                   _selectedImage = pickedFile;
                 });
@@ -329,16 +330,11 @@ class _AddProductModalState extends State<AddProductModal> {
     );
   }
 
-  void _submit() {
-    final name = _nameController.text;
-    final quantity = int.tryParse(_quantityController.text) ?? 0;
-
-    if (name.isEmpty || quantity <= 0) {
-      return;
-    }
-
-    widget.onAddProduct(name, quantity, _selectedImage);
-    Navigator.pop(context);
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _quantityController.dispose();
+    super.dispose();
   }
 
   @override
@@ -354,29 +350,30 @@ class _AddProductModalState extends State<AddProductModal> {
           ),
           TextField(
             controller: _quantityController,
-            decoration: const InputDecoration(labelText: 'จำนวนสินค้า'),
+            decoration: const InputDecoration(labelText: 'จำนวน'),
             keyboardType: TextInputType.number,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           GestureDetector(
             onTap: () => _chooseImage(context),
-            child: Container(
-              height: 100,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-              ),
-              child: _selectedImage != null
-                  ? Image.file(
-                      File(_selectedImage!.path),
-                      fit: BoxFit.cover,
-                    )
-                  : const Center(child: Text('เลือกภาพ')),
-            ),
+            child: _selectedImage != null
+                ? Image.file(
+                    File(_selectedImage!.path),
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                  )
+                : const Icon(Icons.add_a_photo, size: 100),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: _submit,
-            child: const Text('บันทึก'),
+            onPressed: () {
+              String name = _nameController.text;
+              int quantity = int.parse(_quantityController.text);
+              widget.onAddProduct(name, quantity, _selectedImage);
+              Navigator.pop(context);
+            },
+            child: const Text('บันทึกสินค้า'),
           ),
         ],
       ),
