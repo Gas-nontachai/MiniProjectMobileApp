@@ -142,7 +142,6 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
             children: [
               ListTile(
                 title: Text(product['name'] ?? 'ไม่ระบุชื่อสินค้า'),
-                subtitle: Text('จำนวน: ${product['quantity']}'),
                 leading: product['image'] != null && product['image'].isNotEmpty
                     ? Image.file(
                         File(product['image']),
@@ -151,6 +150,24 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
                         fit: BoxFit.cover,
                       )
                     : const Icon(Icons.image),
+              ),
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('จำนวน: ${product['quantity']} ชิ้น'),
+                    Text(
+                        'ราคาทุน: ${product['costPrice']?.toStringAsFixed(2) ?? '0.00'} ฿'),
+                    Text(
+                        'ราคาขาย: ${product['sellingPrice']?.toStringAsFixed(2) ?? '0.00'} ฿'),
+                    Text(
+                        'กำไร: ${(product['sellingPrice'] ?? 0) - (product['costPrice'] ?? 0)} ฿'),
+                    Text(
+                        'หมวดหมู่: ${product['category'] ?? 'ไม่ระบุหมวดหมู่'}'),
+                  ],
+                ),
               ),
               const Divider(),
               TextButton(
@@ -184,7 +201,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return 'นครราชสีมา อุณหภูมิ: ${data['current']['temp_c']} °C';
+      return '\n นครราชสีมา อุณหภูมิ: ${data['current']['temp_c']} °C';
     } else {
       return 'ไม่สามารถโหลดข้อมูลสภาพอากาศ';
     }
@@ -253,15 +270,12 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
                             Text(product['name'] ?? 'ไม่ระบุชื่อสินค้า',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold)),
-                            Text('จำนวน: ${product['quantity']} ชิ้น'),
                             Text(
-                                'ราคาทุน: ${product['costPrice']?.toStringAsFixed(2) ?? '0.00'} ฿'),
-                            Text(
-                                'ราคาขาย: ${product['sellingPrice']?.toStringAsFixed(2) ?? '0.00'} ฿'),
-                            Text(
-                                'กำไร: ${(product['sellingPrice'] ?? 0) - (product['costPrice'] ?? 0)} ฿'),
-                            Text(
-                                'หมวดหมู่: ${product['category'] ?? 'ไม่ระบุหมวดหมู่'}'),
+                              'จำนวน: ${product['quantity']} ชิ้น',
+                              style: const TextStyle(
+                                fontSize: 14,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -385,6 +399,12 @@ class _AddProductModalState extends State<AddProductModal> {
 
     if (sellingPrice < 0) {
       _showAlertDialog('กรุณากรอกราคาขายให้ถูกต้อง');
+      return;
+    }
+
+    // ตรวจสอบว่าราคาขายต้องมากกว่าราคาทุน
+    if (sellingPrice < costPrice) {
+      _showAlertDialog('ราคาขายต้องมากกว่าราคาทุน');
       return;
     }
 
