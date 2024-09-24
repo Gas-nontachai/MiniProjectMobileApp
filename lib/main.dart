@@ -269,11 +269,11 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
                             const SizedBox(height: 8),
                             Text(product['name'] ?? 'ไม่ระบุชื่อสินค้า',
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
                             Text(
                               'จำนวน: ${product['quantity']} ชิ้น',
                               style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 12,
                               ),
                             ),
                           ],
