@@ -361,16 +361,58 @@ class _AddProductModalState extends State<AddProductModal> {
   }
 
   void _addProduct() {
-    final name = _nameController.text;
-    final quantity = int.tryParse(_quantityController.text) ?? 0;
-    final category =
-        _selectedCategory ?? 'ไม่ระบุหมวดหมู่'; // ใช้หมวดหมู่ที่เลือก
-    final costPrice = double.tryParse(_costPriceController.text) ?? 0;
-    final sellingPrice = double.tryParse(_sellingPriceController.text) ?? 0;
+    final name = _nameController.text.trim();
+    final quantity = int.tryParse(_quantityController.text.trim()) ?? -1;
+    final costPrice = double.tryParse(_costPriceController.text.trim()) ?? -1;
+    final sellingPrice =
+        double.tryParse(_sellingPriceController.text.trim()) ?? -1;
+
+    // ตรวจสอบค่าที่ว่าง
+    if (name.isEmpty) {
+      _showAlertDialog('กรุณากรอกชื่อสินค้า');
+      return;
+    }
+
+    if (quantity < 0) {
+      _showAlertDialog('กรุณากรอกจำนวนสินค้าให้ถูกต้อง');
+      return;
+    }
+
+    if (costPrice < 0) {
+      _showAlertDialog('กรุณากรอกราคาทุนให้ถูกต้อง');
+      return;
+    }
+
+    if (sellingPrice < 0) {
+      _showAlertDialog('กรุณากรอกราคาขายให้ถูกต้อง');
+      return;
+    }
+
+    final category = _selectedCategory ?? 'ไม่ระบุหมวดหมู่';
 
     widget.onAddProduct(
         name, quantity, _imageFile, category, costPrice, sellingPrice);
     Navigator.pop(context);
+  }
+
+  void _showAlertDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('ข้อผิดพลาด'),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // ปิด AlertDialog
+              },
+              child: const Text('ตกลง'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
