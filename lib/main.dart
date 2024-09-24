@@ -59,6 +59,8 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
       setState(() {
         _products.addAll(List<Map<String, dynamic>>.from(loadedProducts));
       });
+    } else {
+      print('ไม่พบข้อมูลสินค้า');
     }
   }
 
@@ -68,20 +70,28 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
     await prefs.setString('products', productData);
   }
 
-  void _addProduct(String name, int quantity, XFile? imageFile, [int? index]) {
+  void _addProduct(String name, int quantity, XFile? imageFile, String category,
+      double costPrice, double sellingPrice,
+      [int? index]) {
     setState(() {
-      final imagePath = imageFile?.path; // ใช้ path ของ XFile
+      final imagePath = imageFile?.path ?? '';
+
       if (index != null) {
         _products[index] = {
           'name': name,
           'quantity': quantity,
-          'image': imagePath ??
-              _products[index]['image'], // เก็บค่าภาพเดิมถ้าไม่มีการแก้ไข
+          'category': category.isNotEmpty ? category : 'ประเภท 1',
+          'costPrice': costPrice,
+          'sellingPrice': sellingPrice,
+          'image': imagePath.isNotEmpty ? imagePath : _products[index]['image'],
         };
       } else {
         _products.add({
           'name': name,
           'quantity': quantity,
+          'category': category.isNotEmpty ? category : 'ประเภท 1',
+          'costPrice': costPrice,
+          'sellingPrice': sellingPrice,
           'image': imagePath,
         });
       }
@@ -99,8 +109,10 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: AddProductModal(
-            onAddProduct: (name, quantity, imageFile) {
-              _addProduct(name, quantity, imageFile, index);
+            onAddProduct:
+                (name, quantity, imageFile, category, costPrice, sellingPrice) {
+              _addProduct(name, quantity, imageFile, category, costPrice,
+                  sellingPrice, index);
             },
             existingProduct: product,
           ),
@@ -129,9 +141,9 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                title: Text(product['name']),
+                title: Text(product['name'] ?? 'ไม่ระบุชื่อสินค้า'),
                 subtitle: Text('จำนวน: ${product['quantity']}'),
-                leading: product['image'] != null
+                leading: product['image'] != null && product['image'].isNotEmpty
                     ? Image.file(
                         File(product['image']),
                         width: 50,
@@ -162,26 +174,19 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
     );
   }
 
-  Future<Widget> fetchWeather() async {
-    const city = 'Nakhon Ratchasima'; // ชื่อเมือง
-    const apikey = '4881842815d84f00b03220602242309'; // ใส่ API Key ที่ถูกต้อง
+  Future<String> fetchWeather() async {
+    const city = 'Nakhon Ratchasima';
+    const apikey = 'a0d63355b66540d793c104957242409';
 
     final response = await http.get(Uri.parse(
-      'https://api.weatherapi.com/v1/current.json?key=$apikey&q=$city&aqi=no',
+      'http://api.weatherapi.com/v1/current.json?key=$apikey&q=$city&aqi=no',
     ));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return Text(
-        '\n นครราชสีมา อุณหภูมิ: ${data['current']['temp_c']} °C',
-        style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold), // ปรับขนาดและสไตล์ที่นี่
-      );
+      return 'นครราชสีมา อุณหภูมิ: ${data['current']['temp_c']} °C';
     } else {
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-      throw Exception('\n ไม่สามารถโหลดข้อมูลได้');
+      return 'ไม่สามารถโหลดข้อมูลสภาพอากาศ';
     }
   }
 
@@ -194,7 +199,10 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredProducts = _products.where((product) {
-      return product['name'].toLowerCase().contains(_searchQuery.toLowerCase());
+      return product['name']
+              ?.toLowerCase()
+              .contains(_searchQuery.toLowerCase()) ??
+          false;
     }).toList();
 
     return Scaffold(
@@ -232,7 +240,8 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            product['image'] != null
+                            product['image'] != null &&
+                                    product['image'].isNotEmpty
                                 ? Image.file(
                                     File(product['image']),
                                     width: 80,
@@ -241,10 +250,18 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
                                   )
                                 : const Icon(Icons.image, size: 80),
                             const SizedBox(height: 8),
-                            Text(product['name'],
+                            Text(product['name'] ?? 'ไม่ระบุชื่อสินค้า',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold)),
-                            Text('จำนวน: ${product['quantity']}'),
+                            Text('จำนวน: ${product['quantity']} ชิ้น'),
+                            Text(
+                                'ราคาทุน: ${product['costPrice']?.toStringAsFixed(2) ?? '0.00'} ฿'),
+                            Text(
+                                'ราคาขาย: ${product['sellingPrice']?.toStringAsFixed(2) ?? '0.00'} ฿'),
+                            Text(
+                                'กำไร: ${(product['sellingPrice'] ?? 0) - (product['costPrice'] ?? 0)} ฿'),
+                            Text(
+                                'หมวดหมู่: ${product['category'] ?? 'ไม่ระบุหมวดหมู่'}'),
                           ],
                         ),
                       ),
@@ -262,7 +279,7 @@ class _StockCheckScreenState extends State<StockCheckScreen> {
 }
 
 class AddProductModal extends StatefulWidget {
-  final Function(String, int, XFile?) onAddProduct;
+  final Function(String, int, XFile?, String, double, double) onAddProduct;
   final Map<String, dynamic>? existingProduct;
 
   const AddProductModal({
@@ -276,65 +293,84 @@ class AddProductModal extends StatefulWidget {
 }
 
 class _AddProductModalState extends State<AddProductModal> {
-  final _nameController = TextEditingController();
-  final _quantityController = TextEditingController();
-  XFile? _selectedImage;
-
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController();
+  final TextEditingController _costPriceController = TextEditingController();
+  final TextEditingController _sellingPriceController = TextEditingController();
+  XFile? _imageFile;
+  // เพิ่มรายการหมวดหมู่ที่เป็นไปได้
+  final List<String> _categories = ['หมวดหมู่ 1', 'หมวดหมู่ 2', 'หมวดหมู่ 3'];
+  String? _selectedCategory; // ตัวแปรสำหรับเก็บหมวดหมู่ที่เลือก
   @override
   void initState() {
     super.initState();
     if (widget.existingProduct != null) {
       _nameController.text = widget.existingProduct!['name'];
       _quantityController.text = widget.existingProduct!['quantity'].toString();
-      final imagePath = widget.existingProduct!['image'];
-      if (imagePath != null) {
-        _selectedImage = XFile(imagePath); // แปลง path กลับเป็น XFile
-      }
+      _selectedCategory =
+          widget.existingProduct!['category']; // กำหนดหมวดหมู่ที่เลือก
+      _costPriceController.text =
+          widget.existingProduct!['costPrice'].toString();
+      _sellingPriceController.text =
+          widget.existingProduct!['sellingPrice'].toString();
+      _imageFile = widget.existingProduct!['image'] != null &&
+              widget.existingProduct!['image'].isNotEmpty
+          ? XFile(widget.existingProduct!['image'])
+          : null;
     }
   }
 
-  Future<void> _chooseImage(BuildContext context) async {
-    final ImagePicker picker = ImagePicker();
-    showModalBottomSheet(
+  Future<void> _chooseImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await showDialog<XFile>(
       context: context,
       builder: (BuildContext context) {
-        return Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera),
-              title: const Text('ถ่ายรูป'),
-              onTap: () async {
-                final pickedFile =
-                    await picker.pickImage(source: ImageSource.camera);
-                setState(() {
-                  _selectedImage = pickedFile;
-                });
-                Navigator.pop(context);
+        return AlertDialog(
+          title: const Text('เลือกแหล่งที่มาของภาพ'),
+          actions: [
+            TextButton(
+              child: const Text('กล้อง'),
+              onPressed: () async {
+                Navigator.pop(context,
+                    await picker.pickImage(source: ImageSource.camera));
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('เลือกรูปจากแกลเลอรี่'),
-              onTap: () async {
-                final pickedFile =
-                    await picker.pickImage(source: ImageSource.gallery);
-                setState(() {
-                  _selectedImage = pickedFile;
-                });
-                Navigator.pop(context);
+            TextButton(
+              child: const Text('แกลเลอรี่'),
+              onPressed: () async {
+                Navigator.pop(context,
+                    await picker.pickImage(source: ImageSource.gallery));
+              },
+            ),
+            TextButton(
+              child: const Text('ยกเลิก'),
+              onPressed: () {
+                Navigator.pop(context, null);
               },
             ),
           ],
         );
       },
     );
+
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = pickedFile;
+      });
+    }
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _quantityController.dispose();
-    super.dispose();
+  void _addProduct() {
+    final name = _nameController.text;
+    final quantity = int.tryParse(_quantityController.text) ?? 0;
+    final category =
+        _selectedCategory ?? 'ไม่ระบุหมวดหมู่'; // ใช้หมวดหมู่ที่เลือก
+    final costPrice = double.tryParse(_costPriceController.text) ?? 0;
+    final sellingPrice = double.tryParse(_sellingPriceController.text) ?? 0;
+
+    widget.onAddProduct(
+        name, quantity, _imageFile, category, costPrice, sellingPrice);
+    Navigator.pop(context);
   }
 
   @override
@@ -346,34 +382,59 @@ class _AddProductModalState extends State<AddProductModal> {
         children: [
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(labelText: 'ชื่อสินค้า'),
+            decoration: const InputDecoration(hintText: 'ชื่อสินค้า'),
           ),
           TextField(
             controller: _quantityController,
-            decoration: const InputDecoration(labelText: 'จำนวน'),
+            decoration: const InputDecoration(hintText: 'จำนวนสินค้า'),
+            keyboardType: TextInputType.number,
+          ),
+          DropdownButtonFormField<String>(
+            value: _selectedCategory,
+            decoration: const InputDecoration(hintText: 'หมวดหมู่'),
+            items: _categories.map((String category) {
+              return DropdownMenuItem<String>(
+                value: category,
+                child: Text(category),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              setState(() {
+                _selectedCategory = newValue; // อัพเดทหมวดหมู่ที่เลือก
+              });
+            },
+          ),
+          TextField(
+            controller: _costPriceController,
+            decoration: const InputDecoration(hintText: 'ราคาทุน'),
+            keyboardType: TextInputType.number,
+          ),
+          TextField(
+            controller: _sellingPriceController,
+            decoration: const InputDecoration(hintText: 'ราคาขาย'),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 8),
           GestureDetector(
-            onTap: () => _chooseImage(context),
-            child: _selectedImage != null
-                ? Image.file(
-                    File(_selectedImage!.path),
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.cover,
-                  )
-                : const Icon(Icons.add_a_photo, size: 100),
+            onTap: _chooseImage,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+              ),
+              height: 100,
+              width: double.infinity,
+              child: _imageFile != null
+                  ? Image.file(
+                      File(_imageFile!.path),
+                      fit: BoxFit.cover,
+                    )
+                  : const Center(child: Text('เลือกภาพ')),
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () {
-              String name = _nameController.text;
-              int quantity = int.parse(_quantityController.text);
-              widget.onAddProduct(name, quantity, _selectedImage);
-              Navigator.pop(context);
-            },
-            child: const Text('บันทึกสินค้า'),
+            onPressed: _addProduct,
+            child: const Text('บันทึก'),
           ),
         ],
       ),
